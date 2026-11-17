@@ -1,0 +1,291 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens captured from the reference app (light theme). */
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  --color-foreground: hsl(240 3% 6%);
+  --color-background: hsl(0 0% 100%);
+  --color-popover: hsl(0 0% 100%);
+  --color-secondary: #00000087;
+  --color-subtle: #00000070;
+  --color-muted: #0000000b;
+  --color-border: #00000013;
+
+  --color-gray-50: hsl(0 0% 98%);
+  --color-gray-75: hsl(0 0% 93%);
+  --color-gray-100: hsl(0 0% 89%);
+  --color-gray-150: hsl(0 0% 85%);
+  --color-gray-200: hsl(0 0% 81%);
+  --color-gray-250: hsl(0 0% 76%);
+  --color-gray-300: hsl(0 0% 72%);
+  --color-gray-400: hsl(0 0% 64%);
+  --color-gray-500: hsl(0 0% 55%);
+  --color-gray-600: hsl(0 0% 46%);
+  --color-gray-700: hsl(0 0% 36%);
+  --color-gray-800: hsl(0 0% 27%);
+  --color-gray-900: hsl(0 0% 18%);
+  --color-gray-950: hsl(0 0% 9%);
+
+  --color-gray-alpha-50: #00000005;
+  --color-gray-alpha-75: #00000008;
+  --color-gray-alpha-100: #0000000b;
+  --color-gray-alpha-150: #00000013;
+  --color-gray-alpha-200: #0000001a;
+  --color-gray-alpha-250: #00000022;
+  --color-gray-alpha-300: #00000029;
+  --color-gray-alpha-400: #00000059;
+  --color-gray-alpha-500: #00000087;
+
+  --text-xm: 0.8125rem;
+  --text-xm--line-height: 1.25rem;
+  --text-md: 1rem;
+  --text-md--line-height: 1.5rem;
+
+  --shadow-natural-xs: 0 0 0 1px #0000000f, 0 1px 1px -0.5px #0000000f, 0 3px 3px -1.5px #0000000f;
+  --shadow-natural-sm: 0 0 0 1px #0000000f, 0 1px 1px -0.5px #0000000f, 0 3px 3px -1.5px #0000000f,
+    0 6px 6px -3px #0000000f, 0 12px 12px -6px #00000005;
+  --shadow-lg: 0px 4px 6px -2px #10182808, 0px 12px 16px -4px #10182814;
+  --shadow-popover: 0 0 0 1px #0000000f, 0 4px 6px -2px #10182808, 0 12px 24px -4px #10182824;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-foreground);
+    background: var(--color-background);
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-x: none;
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-background), 0 0 0 3.5px var(--color-foreground);
+  }
+}
+
+@utility stack {
+  display: flex;
+  flex-direction: column;
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-300) transparent;
+}
+
+/* ------------------------------------------------------------------ */
+/* Canvas                                                              */
+/* ------------------------------------------------------------------ */
+
+.flows-canvas {
+  --xy-background-color: transparent;
+  --xy-node-boxshadow-selected: none;
+  --xy-selection-background-color: color-mix(in oklab, #3b82f6 10%, transparent);
+  --xy-selection-border: 1px solid #3b82f6;
+}
+
+.flows-canvas .react-flow__node {
+  font-family: var(--font-sans);
+}
+
+.flows-canvas .react-flow__pane.selection {
+  cursor: default;
+}
+.flows-canvas[data-tool="hand"] .react-flow__pane {
+  cursor: grab;
+}
+.flows-canvas[data-tool="hand"] .react-flow__pane.dragging {
+  cursor: grabbing;
+}
+.flows-canvas[data-tool="comment"] .react-flow__pane {
+  cursor: crosshair;
+}
+
+.flows-canvas .react-flow__background-pattern.dots {
+  fill: var(--color-gray-400);
+}
+
+.flows-canvas .react-flow__selection {
+  border-radius: 0;
+}
+
+/* Port handles — 32px circular, tinted by port type */
+.flows-canvas .node-handle {
+  width: 2rem;
+  height: 2rem;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 9999px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in oklch, oklch(var(--port-oklch)), #ffffffb3 65%);
+  color: var(--port-highlight);
+  transition: opacity 0.1s, transform 0.1s, background-color 0.1s;
+}
+.flows-canvas .node-handle svg {
+  width: 16px;
+  height: 16px;
+}
+.flows-canvas .node-handle[data-optional="true"]:not([data-connected="true"]) {
+  opacity: 0.45;
+}
+.flows-canvas .react-flow__node:hover .node-handle[data-optional="true"],
+.flows-canvas .react-flow__node.selected .node-handle[data-optional="true"] {
+  opacity: 0.7;
+}
+.flows-canvas .node-handle.connectingto,
+.flows-canvas .node-handle.valid {
+  opacity: 1 !important;
+  background-color: oklch(var(--port-oklch));
+  color: white;
+}
+.flows-canvas .node-handle:hover {
+  background-color: color-mix(in oklch, oklch(var(--port-oklch)), #ffffffb3 40%);
+}
+
+.port-text {
+  --port-oklch: 0.7 0 0;
+  --port-highlight: lab(42 0 0);
+}
+.port-image {
+  --port-oklch: 0.63 0.21 249.86;
+  --port-highlight: lab(34.2 -1.7 -46.3);
+}
+.port-video {
+  --port-oklch: 0.58 0.27 289.97;
+  --port-highlight: rgb(99 45 216);
+}
+
+/* Edges */
+.flows-canvas .flow-edge {
+  stroke-width: 2;
+  fill: none;
+  transition: stroke 0.1s;
+}
+.flows-canvas .react-flow__edge.selected .flow-edge,
+.flows-canvas .react-flow__edge:hover .flow-edge {
+  stroke-width: 2.5;
+}
+.flow-edge-gradient {
+  --edge-opacity: 0.35;
+}
+.flow-edge-gradient[data-selected="true"] {
+  --edge-opacity: 1;
+}
+.flow-edge-gradient stop {
+  transition: stop-color 0.1s;
+}
+
+.flows-canvas .react-flow__connectionline {
+  z-index: 1001;
+}
+
+/* Input edges of a running node: dashes flowing toward the node */
+.flows-canvas .flow-edge-running {
+  stroke-width: 3;
+  stroke-dasharray: 6 10;
+  stroke-linecap: round;
+  pointer-events: none;
+  animation: edge-flow 0.6s linear infinite;
+  filter: drop-shadow(0 0 3px oklch(0.7 0.15 250 / 0.5));
+}
+@keyframes edge-flow {
+  from {
+    stroke-dashoffset: 16;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Prompts show 3 lines; the full text appears while editing */
+.prompt-clamp:not(:focus-within) .tiptap {
+  display: -webkit-box !important; /* ProseMirror sets display: flow-root */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  /* hard cap too: top padding (py-2) + 3 lines of text-sm – clamping alone leaks lines across paragraphs */
+  max-height: calc(3 * 1.25rem + 0.5rem);
+}
+
+/* ProseMirror */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-secondary);
+  pointer-events: none;
+  height: 0;
+}
+.tiptap:focus {
+  outline: none;
+}
+.tiptap p {
+  min-height: 1.25rem;
+}
+
+/* Popover / menu animations */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-pop {
+  animation: pop-in 0.12s ease-out;
+  transform-origin: var(--radix-popper-transform-origin, center);
+}
+
+@keyframes placeholder-in {
+  from {
+    opacity: 0;
+    filter: blur(1.5px);
+    transform: translateY(20%);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+.animate-placeholder {
+  animation: placeholder-in 0.35s ease-out;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, #0000000a 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}

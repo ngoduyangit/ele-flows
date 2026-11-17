@@ -1,0 +1,125 @@
+{
+  "id": "the-last-umbrella-ep1",
+  "name": "The Last Umbrella – Episode 1",
+  "description": "A stranger offers a soaked office worker the last umbrella at a bus stop – then reveals he knows her name.",
+  "defaults": {
+    "aspectRatio": "9:16"
+  },
+  "nodes": [
+    {
+      "key": "style",
+      "kind": "text",
+      "label": "Style",
+      "text": "Plain, realistic TV-drama look: overcast evening light, wet streets, true-to-life skin texture, muted colours, handheld 35mm, no glamour lighting."
+    },
+    {
+      "key": "mai_sheet",
+      "kind": "image-generation",
+      "label": "Mai – sheet",
+      "aspectRatio": "16:9",
+      "prompt": "Character reference sheet of one person, Mai: Vietnamese woman, late 20s, shoulder-length black hair, light grey blazer over a white blouse, black trousers, canvas tote bag. Left, a head-and-shoulders close-up looking into the lens; right, full-body front, side and back views standing relaxed. Identical face, hair and outfit in every view, plain light grey background, even studio light, photorealistic, no text, no labels."
+    },
+    {
+      "key": "khoa_sheet",
+      "kind": "image-generation",
+      "label": "Khoa – sheet",
+      "aspectRatio": "16:9",
+      "prompt": "Character reference sheet of one person, Khoa: Vietnamese man, early 30s, short neat hair, dark navy raincoat, carries a closed black umbrella. Left, a head-and-shoulders close-up looking into the lens; right, full-body front, side and back views standing relaxed. Identical face, hair and outfit in every view, plain light grey background, even studio light, photorealistic, no text, no labels."
+    },
+    {
+      "key": "busstop_set",
+      "kind": "image-generation",
+      "label": "a city bus stop at dusk – set",
+      "aspectRatio": "9:16",
+      "prompt": "Wide establishing shot of a city bus stop at dusk, no people: glass shelter with a metal bench, rain streaming off the roof, traffic lights blurred in the background. @style"
+    },
+    {
+      "key": "s01_still",
+      "kind": "image-generation",
+      "label": "s01 – still",
+      "aspectRatio": "9:16",
+      "refs": [
+        "mai_sheet",
+        "busstop_set"
+      ],
+      "prompt": "Film still, medium shot in @busstop_set. Mai stands at the edge of the shelter, hair wet, holding her tote over her head. Mai looks exactly like @mai_sheet. @style"
+    },
+    {
+      "key": "s01_clip",
+      "kind": "video-generation",
+      "label": "s01 – clip",
+      "aspectRatio": "9:16",
+      "duration": 10,
+      "refs": [
+        "s01_still"
+      ],
+      "prompt": "Starting exactly from @s01_still, one continuous shot, no cuts.\n0–1.5 s: hold on the opening frame, small natural movement only.\nShe checks her phone, sighs and looks up the road for the bus.\nLast 2 s: hold the final pose so the clip can be trimmed.\nCamera: steady, slight handheld drift.\nNo on-screen text, no subtitles, no music."
+    },
+    {
+      "key": "s02_still",
+      "kind": "image-generation",
+      "label": "s02 – still",
+      "aspectRatio": "9:16",
+      "refs": [
+        "mai_sheet",
+        "khoa_sheet",
+        "busstop_set"
+      ],
+      "prompt": "Film still, two-shot in @busstop_set. Khoa steps under the shelter beside Mai, rain dripping from his coat. Mai looks exactly like @mai_sheet. Khoa looks exactly like @khoa_sheet. @style"
+    },
+    {
+      "key": "s02_clip",
+      "kind": "video-generation",
+      "label": "s02 – clip",
+      "aspectRatio": "9:16",
+      "duration": 10,
+      "refs": [
+        "s02_still"
+      ],
+      "prompt": "Starting exactly from @s02_still, one continuous shot, no cuts.\n0–1.5 s: hold on the opening frame, small natural movement only.\nKhoa holds out the closed umbrella to Mai without a word. Khoa says once, starting at 0.3 s, in one breath: \"Take it. It's the last one.\" – then stays silent.\nLast 2 s: hold the final pose so the clip can be trimmed.\nCamera: steady, slight handheld drift.\nNo on-screen text, no subtitles, no music."
+    },
+    {
+      "key": "s03_start",
+      "kind": "last-frame",
+      "label": "s03 – start (from s02)",
+      "inputs": {
+        "video": "s02_clip"
+      },
+      "which": "time",
+      "at": 8
+    },
+    {
+      "key": "s03_clip",
+      "kind": "video-generation",
+      "label": "s03 – clip",
+      "aspectRatio": "9:16",
+      "duration": 10,
+      "refs": [
+        "s03_start"
+      ],
+      "prompt": "Starting exactly from @s03_start, one continuous shot, no cuts.\n0–1.5 s: hold on the opening frame, small natural movement only.\nMai hesitates, then takes the umbrella; Khoa smiles and steps back into the rain. Khoa says once, starting at 0.3 s, in one breath: \"Goodnight, Mai.\" – then stays silent.\nLast 2 s: hold the final pose so the clip can be trimmed.\nCamera: steady, slight handheld drift.\nNo on-screen text, no subtitles, no music."
+    },
+    {
+      "key": "s04_still",
+      "kind": "image-generation",
+      "label": "s04 – still",
+      "aspectRatio": "9:16",
+      "refs": [
+        "mai_sheet",
+        "busstop_set"
+      ],
+      "prompt": "Film still, close-up in @busstop_set. Mai's face, frozen, the umbrella in her hands. Mai looks exactly like @mai_sheet. @style"
+    },
+    {
+      "key": "s04_clip",
+      "kind": "video-generation",
+      "label": "s04 – clip",
+      "aspectRatio": "9:16",
+      "duration": 10,
+      "refs": [
+        "s04_still"
+      ],
+      "prompt": "Starting exactly from @s04_still, one continuous shot, no cuts.\n0–1.5 s: hold on the opening frame, small natural movement only.\nHer eyes widen as she realises she never told him her name.\nLast 2 s: hold the final pose so the clip can be trimmed.\nCamera: slow push in.\nNo on-screen text, no subtitles, no music."
+    }
+  ]
+}

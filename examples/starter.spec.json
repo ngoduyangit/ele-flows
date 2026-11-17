@@ -1,0 +1,13 @@
+{
+  "id": "muse-starter",
+  "name": "Muse starter flow",
+  "description": "Brief → character image → 10 s video, then chain a second shot from the first clip's last frame.",
+  "defaults": { "aspectRatio": "16:9" },
+  "nodes": [
+    { "key": "brief", "kind": "text", "label": "Brief", "text": "A young woman in a yellow raincoat runs across a rainy night street in Hanoi, neon reflections on the wet asphalt." },
+    { "key": "hero", "kind": "image-generation", "label": "Hero still", "prompt": "Cinematic film still. @brief Medium shot, she stops under a shop awning and looks back over her shoulder. 35mm lens, shallow depth of field, natural skin texture." },
+    { "key": "shot1", "kind": "video-generation", "label": "Shot 1", "duration": 10, "refs": ["hero"], "prompt": "Starting exactly from @hero: she catches her breath, then turns and keeps running down the street; the camera tracks beside her. Rain keeps falling, neon flickers. One continuous shot, no cuts." },
+    { "key": "shot1_end", "kind": "last-frame", "label": "Shot 1 – last frame", "inputs": { "video": "shot1" } },
+    { "key": "shot2", "kind": "video-generation", "label": "Shot 2", "duration": 10, "refs": ["shot1_end"], "prompt": "Continue from @shot1_end: she reaches a tram stop, the tram doors open, she steps in and the doors close behind her. Same light, same rain. One continuous shot, no cuts." }
+  ]
+}

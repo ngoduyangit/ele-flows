@@ -1,0 +1,21 @@
+{
+  "id": "the-last-umbrella-ep1",
+  "title": "The Last Umbrella – Episode 1",
+  "logline": "A stranger offers a soaked office worker the last umbrella at a bus stop – then reveals he knows her name.",
+  "aspectRatio": "9:16",
+  "clipSeconds": 10,
+  "style": "Plain, realistic TV-drama look: overcast evening light, wet streets, true-to-life skin texture, muted colours, handheld 35mm, no glamour lighting.",
+  "characters": [
+    { "key": "mai", "name": "Mai", "description": "Vietnamese woman, late 20s, shoulder-length black hair, light grey blazer over a white blouse, black trousers, canvas tote bag." },
+    { "key": "khoa", "name": "Khoa", "description": "Vietnamese man, early 30s, short neat hair, dark navy raincoat, carries a closed black umbrella." }
+  ],
+  "locations": [
+    { "key": "busstop", "name": "a city bus stop at dusk", "description": "glass shelter with a metal bench, rain streaming off the roof, traffic lights blurred in the background." }
+  ],
+  "shots": [
+    { "key": "s01", "location": "busstop", "cast": ["mai"], "shotSize": "medium shot", "frame": "Mai stands at the edge of the shelter, hair wet, holding her tote over her head.", "action": "She checks her phone, sighs and looks up the road for the bus." },
+    { "key": "s02", "location": "busstop", "cast": ["mai", "khoa"], "shotSize": "two-shot", "frame": "Khoa steps under the shelter beside Mai, rain dripping from his coat.", "action": "Khoa holds out the closed umbrella to Mai without a word.", "speaker": "khoa", "line": "Take it. It's the last one." },
+    { "key": "s03", "continuesFrom": "s02", "startAt": 8, "cast": ["mai", "khoa"], "action": "Mai hesitates, then takes the umbrella; Khoa smiles and steps back into the rain.", "speaker": "khoa", "line": "Goodnight, Mai." },
+    { "key": "s04", "location": "busstop", "cast": ["mai"], "shotSize": "close-up", "frame": "Mai's face, frozen, the umbrella in her hands.", "action": "Her eyes widen as she realises she never told him her name.", "camera": "slow push in" }
+  ]
+}

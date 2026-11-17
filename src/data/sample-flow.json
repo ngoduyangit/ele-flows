@@ -1,0 +1,236 @@
+{
+ "nodes": [
+  {
+   "id": "3kZY9GRMSst5H9Y3Qh2O",
+   "type": "text",
+   "position": {
+    "x": 0,
+    "y": -130
+   },
+   "data": {
+    "label": "Brief",
+    "text": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "A young woman in a yellow raincoat runs across a rainy night street in Hanoi, neon reflections on the wet asphalt."
+        }
+       ]
+      }
+     ]
+    },
+    "allowedValues": null,
+    "specKey": "brief"
+   }
+  },
+  {
+   "id": "tGnKTVSJ5h-ub4eUlO-D",
+   "type": "content-generation",
+   "position": {
+    "x": 440,
+    "y": -312
+   },
+   "data": {
+    "label": "Hero still",
+    "parameters": {
+     "prompt": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Cinematic film still. "
+         },
+         {
+          "type": "prompt-tag",
+          "attrs": {
+           "id": "node:3kZY9GRMSst5H9Y3Qh2O",
+           "type": "node-reference",
+           "label": "Brief"
+          }
+         },
+         {
+          "type": "text",
+          "text": " Medium shot, she stops under a shop awning and looks back over her shoulder. 35mm lens, shallow depth of field, natural skin texture."
+         }
+        ]
+       }
+      ]
+     },
+     "modality": "image",
+     "aspectRatio": "16:9",
+     "referenceImages": [],
+     "video": {
+      "modelId": "muse",
+      "durationSecs": 10
+     },
+     "image": {
+      "modelId": "muse"
+     }
+    },
+    "templateOutput": null,
+    "specKey": "hero"
+   }
+  },
+  {
+   "id": "s441Db9hhtGW9tviT6bA",
+   "type": "content-generation",
+   "position": {
+    "x": 1113,
+    "y": -312
+   },
+   "data": {
+    "label": "Shot 1",
+    "parameters": {
+     "prompt": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Starting exactly from "
+         },
+         {
+          "type": "prompt-tag",
+          "attrs": {
+           "id": "node:tGnKTVSJ5h-ub4eUlO-D",
+           "type": "node-reference",
+           "label": "Hero still"
+          }
+         },
+         {
+          "type": "text",
+          "text": ": she catches her breath, then turns and keeps running down the street; the camera tracks beside her. Rain keeps falling, neon flickers. One continuous shot, no cuts."
+         }
+        ]
+       }
+      ]
+     },
+     "modality": "video",
+     "aspectRatio": "16:9",
+     "referenceImages": [],
+     "video": {
+      "modelId": "muse",
+      "durationSecs": 10
+     },
+     "image": {
+      "modelId": "muse"
+     }
+    },
+    "templateOutput": null,
+    "specKey": "shot1"
+   }
+  },
+  {
+   "id": "-z4Gtf4WU2GpiF4qy0gh",
+   "type": "process",
+   "position": {
+    "x": 1786,
+    "y": -210
+   },
+   "data": {
+    "label": "Shot 1 – last frame",
+    "kind": "last-frame",
+    "parameters": {
+     "modelId": "ffmpeg",
+     "prompt": ""
+    },
+    "templateOutput": null,
+    "specKey": "shot1_end"
+   }
+  },
+  {
+   "id": "cNwhCbMSKHbC4Z9X5CG7",
+   "type": "content-generation",
+   "position": {
+    "x": 2326,
+    "y": -312
+   },
+   "data": {
+    "label": "Shot 2",
+    "parameters": {
+     "prompt": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Continue from "
+         },
+         {
+          "type": "prompt-tag",
+          "attrs": {
+           "id": "node:-z4Gtf4WU2GpiF4qy0gh",
+           "type": "node-reference",
+           "label": "Shot 1 – last frame"
+          }
+         },
+         {
+          "type": "text",
+          "text": ": she reaches a tram stop, the tram doors open, she steps in and the doors close behind her. Same light, same rain. One continuous shot, no cuts."
+         }
+        ]
+       }
+      ]
+     },
+     "modality": "video",
+     "aspectRatio": "16:9",
+     "referenceImages": [],
+     "video": {
+      "modelId": "muse",
+      "durationSecs": 10
+     },
+     "image": {
+      "modelId": "muse"
+     }
+    },
+    "templateOutput": null,
+    "specKey": "shot2"
+   }
+  }
+ ],
+ "edges": [
+  {
+   "id": "edge-tGnKTVSJ5h-ub4eUlO-D-s441Db9hhtGW9tviT6bA-referenceImages",
+   "source": "tGnKTVSJ5h-ub4eUlO-D",
+   "sourceHandle": "output",
+   "target": "s441Db9hhtGW9tviT6bA",
+   "targetHandle": "referenceImages",
+   "type": "dataflow"
+  },
+  {
+   "id": "edge-s441Db9hhtGW9tviT6bA--z4Gtf4WU2GpiF4qy0gh-video",
+   "source": "s441Db9hhtGW9tviT6bA",
+   "sourceHandle": "output",
+   "target": "-z4Gtf4WU2GpiF4qy0gh",
+   "targetHandle": "video",
+   "type": "dataflow"
+  },
+  {
+   "id": "edge--z4Gtf4WU2GpiF4qy0gh-cNwhCbMSKHbC4Z9X5CG7-referenceImages",
+   "source": "-z4Gtf4WU2GpiF4qy0gh",
+   "sourceHandle": "output",
+   "target": "cNwhCbMSKHbC4Z9X5CG7",
+   "targetHandle": "referenceImages",
+   "type": "dataflow"
+  },
+  {
+   "id": "edge-3kZY9GRMSst5H9Y3Qh2O-tGnKTVSJ5h-ub4eUlO-D-prompt",
+   "source": "3kZY9GRMSst5H9Y3Qh2O",
+   "sourceHandle": "output",
+   "target": "tGnKTVSJ5h-ub4eUlO-D",
+   "targetHandle": "prompt",
+   "type": "dataflow"
+  }
+ ]
+}

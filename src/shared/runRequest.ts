@@ -109,6 +109,9 @@ export function buildRunRequest(ctx: Ctx): Record<string, unknown> | { passthrou
       if (p.modality === 'video')
         return {
           capability: 'video',
+          model: p.video?.modelId,
+          resolution: p.resolution,
+          generateAudio: p.video?.generateAudio,
           prompt: resolvePrompt(p.prompt, ctx),
           aspectRatio: p.aspectRatio,
           durationSecs: p.video?.durationSecs,
@@ -119,7 +122,7 @@ export function buildRunRequest(ctx: Ctx): Record<string, unknown> | { passthrou
           startFrameLabel: labels(ctx, 'startFrame')[0],
           endFrameLabel: labels(ctx, 'endFrame')[0],
         }
-      return { capability: 'image', prompt: resolvePrompt(p.prompt, ctx), aspectRatio: p.aspectRatio, images: urls(ctx, 'referenceImages'), imageLabels: labels(ctx, 'referenceImages') }
+      return { capability: 'image', model: p.image?.modelId, resolution: p.resolution, prompt: resolvePrompt(p.prompt, ctx), aspectRatio: p.aspectRatio, images: urls(ctx, 'referenceImages'), imageLabels: labels(ctx, 'referenceImages') }
     }
     case 'process': {
       if (d.kind !== 'last-frame') throw new Error(`“${d.label}” cannot run`)

@@ -10,6 +10,7 @@ import { PROCESS_KINDS, getPorts, sizeForAspect } from '../lib/registry'
 import type { BaseNodeData, CommentNodeData, ContentGenerationData, FlowNode, MediaNodeData, ProcessNodeData, TextNodeData } from '../lib/types'
 import { activeGeneration, useFlow } from '../store/flowStore'
 import { LazyVideo, MediaPreview } from './media'
+import { IMAGE_MODELS, NOV_TEST_RESOLUTION, SEEDREAM_PRICE, VIDEO_MODELS, modelLabel, novPrice, novPricing, vnd } from '../shared/novPricing'
 import {
   DeleteButton,
   DownloadButton,
@@ -104,6 +105,7 @@ export function TextNode({ id, data, selected, width }: P<TextNodeData>) {
 const IMAGE_ASPECTS = ['16:9', '9:16', '1:1', '4:3', '3:4'].map((v) => ({ value: v, label: v }))
 const VIDEO_ASPECTS = ['16:9', '9:16'].map((v) => ({ value: v, label: v }))
 const DURATIONS = [10, 20, 30, 60].map((v) => ({ value: v, label: `${v}s` }))
+const IMAGE_RES = ['1K', '2K'].map((v) => ({ value: v, label: v }))
 
 
 const isVideoUrl = (u: string) => /\.(mp4|webm|mov)(\?|$)/i.test(u)
@@ -173,6 +175,27 @@ export function ContentGenerationNode({ id, data, selected, width }: P<ContentGe
   void width
   const modality = p.modality
   const placeholder = modality === 'video' ? 'Describe the video...' : 'Describe the image...'
+  const modelId = (modality === 'video' ? p.video.modelId : p.image.modelId) || 'muse'
+  const isNov = modelId.startsWith('nov/')
+  const pricing = modality === 'video' ? novPricing(modelId) : undefined
+  // Seedance: durations / resolutions of the chosen model + live price; Muse keeps 10/20/30/60 s
+  const durations = pricing ? pricing.durations.map((v) => ({ value: v, label: `${v}s` })) : DURATIONS
+  const resolutions = pricing ? pricing.resolutions.map((v) => ({ value: v, label: v })) : IMAGE_RES
+  const price = modality === 'video' ? novPrice(modelId, p.resolution, p.video.durationSecs) : SEEDREAM_PRICE[modelId] ? { price: SEEDREAM_PRICE[modelId], exact: false } : undefined
+  const setModel = (v: string) =>
+    update((d: any) => {
+      const par = { ...d.parameters, [modality]: { ...d.parameters[modality], modelId: v } }
+      if (v.startsWith('nov/')) {
+        const m = novPricing(v)
+        if (modality === 'video' && m) {
+          par.resolution = m.resolutions.includes(par.resolution) ? par.resolution : m.resolutions.includes(NOV_TEST_RESOLUTION) ? NOV_TEST_RESOLUTION : m.resolutions[0]
+          const want = par.video.durationSecs ?? 10
+          par.video = { ...par.video, durationSecs: m.durations.reduce((a: number, b: number) => (Math.abs(b - want) < Math.abs(a - want) ? b : a)) }
+        } else if (modality === 'image') par.resolution = ['1K', '2K'].includes(par.resolution) ? par.resolution : '2K'
+      } else if (modality === 'video') par.video = { ...par.video, durationSecs: [10, 20, 30, 60].includes(par.video.durationSecs) ? par.video.durationSecs : 10 }
+      return { ...d, parameters: par }
+    })
+  const right = `${modelLabel(modelId)} ${modality === 'video' ? 'Video' : 'Image'}${price ? ` · ${price.exact ? '' : '≈'}${vnd(price.price)}` : ''}`
 
   return (
     <NodeFrame
@@ -180,15 +203,17 @@ export function ContentGenerationNode({ id, data, selected, width }: P<ContentGe
       data={data}
       selected={selected}
       width={w}
-      right={modality === 'video' ? 'Muse Video' : 'Muse Image'}
+      right={right}
       toolbar={
         <>
           <div className="flex items-center">
+            <SelectPill value={modelId} options={modality === 'video' ? VIDEO_MODELS : IMAGE_MODELS} title="Model" onChange={setModel} />
             <SelectPill value={p.aspectRatio} options={modality === 'video' ? VIDEO_ASPECTS : IMAGE_ASPECTS} title="Aspect ratio" onChange={(v) => update(setParam('aspectRatio', v))} />
+            {isNov && <SelectPill value={p.resolution ?? (modality === 'video' ? NOV_TEST_RESOLUTION : '2K')} options={resolutions} title="Resolution (price)" onChange={(v) => update(setParam('resolution', v))} />}
             {modality === 'video' && (
               <SelectPill
                 value={p.video.durationSecs}
-                options={DURATIONS}
+                options={durations}
                 title="Duration"
                 onChange={(v) => update((d: any) => ({ ...d, parameters: { ...d.parameters, video: { ...d.parameters.video, durationSecs: v } } }))}
               />

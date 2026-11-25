@@ -43,8 +43,8 @@ A spec is a short description of a flow. The server turns it into a full flow do
 | --- | --- | --- |
 | `text` | Static text (brief, style, dialogue…) | `text` |
 | `image`, `video` | An existing file | `url` (http(s), `data:` or `/api/media/...`), `mimeType` |
-| `image-generation` | Muse text/reference images → image | `prompt`, `aspectRatio` (`16:9`, `9:16`, `1:1`, `4:3`, `3:4`), `refs` |
-| `video-generation` | Muse text/reference images → video | `prompt`, `aspectRatio` (`16:9`, `9:16`), `duration` (10, 20, 30, 60), `refs`, `startFrame`, `endFrame` |
+| `image-generation` | Muse or Seedream (Nov) text/reference images → image | `prompt`, `aspectRatio` (`16:9`, `9:16`, `1:1`, `4:3`, `3:4`), `refs`, `model` (`muse` default, `nov/seedream-5.5`, `nov/seedream-5.0`), `resolution` (Nov: `2K` default, `1K`) |
+| `video-generation` | Muse or Seedance (Nov) text/reference images → video | `prompt`, `aspectRatio` (`16:9`, `9:16`), `duration` (Muse 10, 20, 30, 60; Seedance 2.5 4–30), `refs`, `startFrame`, `endFrame`, `model` (`muse` default, `nov/seedance-2.5`, …), `resolution` (Nov: `480p` default, `720p`, `1080p`), `generateAudio` |
 | `last-frame` | Extract a frame from a video with local ffmpeg | `inputs: {"video": "<key>"}`, `which` (`last` (default), `first`, `time`), `at` (seconds) |
 | `comment` | Sticky note, never runs | `text` |
 
@@ -134,7 +134,7 @@ Runs live in memory. If the server restarts, generations that were running are m
 
 | Method & path | Description |
 | --- | --- |
-| `POST /api/run` | Run one request: `{capability: "image" | "video" | "frame", prompt, aspectRatio, durationSecs, images[], imageLabels[], startFrame, endFrame, video, which, at}`. Returns `{url, provider}` |
+| `POST /api/run` | Run one request: `{capability: "image" | "video" | "frame", model?, resolution?, generateAudio?, prompt, aspectRatio, durationSecs, images[], imageLabels[], startFrame, endFrame, video, which, at}` (`model: "nov/…"` routes to Nov). Returns `{url, provider}` |
 | `POST /api/upload?name=&type=` | Raw file body. Returns `{url, mimeType}` |
 | `GET /api/media/:file` | Stored file, with Range support. `?w=256|512|768` returns a cached JPEG thumbnail (a poster frame for videos; needs ffmpeg) |
 | `GET /api/settings` | Muse settings with the key masked |

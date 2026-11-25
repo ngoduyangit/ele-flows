@@ -62,6 +62,8 @@ export interface ContentGenerationData extends BaseNodeData {
     prompt: DocJSON
     modality: 'image' | 'video'
     aspectRatio: string
+    /** Nov only: video 480p | 720p | 1080p, image 1K | 2K */
+    resolution?: string
     referenceImages: unknown[]
     video: {
       modelId: string

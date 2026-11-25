@@ -50,6 +50,14 @@ Handy actions:
 - Every connected image is sent as a reference, at most 3 per job. With more than 3, images of the same subject are tiled into one sheet. With only one image, Muse uses it as the opening frame.
 - Up to 4 Muse jobs run at once. Extra jobs wait in a queue (`MUSE_CONCURRENCY`).
 
+## Nov: Seedance & Seedream (optional)
+
+Besides Muse, generation nodes can run **Seedance 2.x** (video) and **Seedream 5.x** (image) through [nov.ai.vn](https://nov.ai.vn): put `NOV_API_KEY` in `.env` (or Settings → Nov), then choose the model in the first pill of a node's toolbar. The node header shows the price in VND; Seedance nodes start at 480p for tests. Details: [docs/providers/nov-seedance.md](docs/providers/nov-seedance.md).
+
+## TVC skill (`muse-tvc`)
+
+`.claude/skills/muse-tvc` turns "make a TVC / product ad for this" into a full pre-production pack (script, art direction, shot list) and builds it as a flow: product sheet → stills → one video per shot → assembly. It ships two paths – Muse only, or Seedream stills + Seedance video – see `.claude/skills/muse-tvc/ELE-FLOWS.md`. Ported from [LuoJiangYong/muse-video-skill](https://github.com/LuoJiangYong/muse-video-skill) (MIT). Worked examples: `examples/tvc/`, `docs/tvc/`.
+
 ## Data
 
 Everything lives in `.flows/`, which git ignores:

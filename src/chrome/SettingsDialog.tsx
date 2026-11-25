@@ -20,6 +20,14 @@ const MUSE: ProviderMeta = {
   keyLabel: 'API key (Bearer) – or MUSE_API_KEY in .env',
 }
 
+const NOV: ProviderMeta = {
+  id: 'nov',
+  name: 'Nov',
+  role: 'Seedance 2.x video · Seedream 5.x image (pick the model on a node)',
+  docs: 'https://nov.ai.vn/api-docs',
+  keyLabel: 'API key (Bearer) – or NOV_API_KEY in .env',
+}
+
 type TestState = { state: 'idle' | 'testing' | 'ok' | 'fail'; message?: string }
 
 const input =
@@ -39,7 +47,7 @@ export function SettingsDialog() {
   const open = useFlow((s) => s.settingsOpen)
   const setOpen = useFlow((s) => s.setSettingsOpen)
   const [settings, setSettings] = useState<PublicSettings | null>(null)
-  const [test, setTest] = useState<TestState>()
+  const [tests, setTests] = useState<Partial<Record<ProviderId, TestState>>>({})
 
   useEffect(() => {
     if (open) getSettings().then(setSettings)
@@ -53,12 +61,12 @@ export function SettingsDialog() {
   if (!open) return null
 
   const runTest = async (id: ProviderId) => {
-    setTest({ state: 'testing' })
+    setTests((t) => ({ ...t, [id]: { state: 'testing' } }))
     try {
       const r = await testProvider(id)
-      setTest({ state: r.ok ? 'ok' : 'fail', message: r.message })
+      setTests((t) => ({ ...t, [id]: { state: r.ok ? 'ok' : 'fail', message: r.message } }))
     } catch (e: any) {
-      setTest({ state: 'fail', message: e?.message ?? String(e) })
+      setTests((t) => ({ ...t, [id]: { state: 'fail', message: e?.message ?? String(e) } }))
     }
   }
 
@@ -79,9 +87,13 @@ export function SettingsDialog() {
           {!settings ? (
             <LoaderCircle className="w-5 h-5 animate-spin text-subtle mx-auto my-20" />
           ) : (
-            <ProviderForm meta={MUSE} settings={settings} test={test} onTest={() => runTest('muse')} onSaved={setSettings} />
+            <div className="space-y-10">
+              {[MUSE, NOV].map((m) => (
+                <ProviderForm key={m.id} meta={m} settings={settings} test={tests[m.id]} onTest={() => runTest(m.id)} onSaved={setSettings} />
+              ))}
+            </div>
           )}
-          <p className="mt-6 text-[11px] leading-4 text-subtle">The key is stored on this machine in .flows/settings.json and never sent to the browser.</p>
+          <p className="mt-6 text-[11px] leading-4 text-subtle">Keys are stored on this machine in .flows/settings.json and never sent to the browser.</p>
         </div>
       </div>
     </div>

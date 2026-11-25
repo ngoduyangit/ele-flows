@@ -212,3 +212,12 @@ The headless runner uses the **same** `buildRunRequest`, so the editor and the A
   - `/api` refuses cross-origin requests.
   - `.flows/` is runtime data: never commit it or delete it.
 - **Code style:** TypeScript, React function components, Tailwind v4 classes, short English comments that explain *why*. All UI text and docs are in English.
+
+## Nov provider (Seedance / Seedream)
+
+- Model ids `nov/<model>` on `parameters.video.modelId` / `parameters.image.modelId`; anything else runs on Muse (`run()` in `server/providers.ts`). Resolution on `parameters.resolution`, audio on `parameters.video.generateAudio`.
+- Seedance (`nov.video`) always uses server SV18; Seedream (`nov.image`) builds the body from each server's param list. Pricing + node pickers: `src/shared/novPricing.ts`.
+- Reference images → `@ImageN` reference mode; only start(/end) frame → `first_frame` / `first_last`. Details: `docs/providers/nov-seedance.md`.
+- `POST /api/flows/:id/run` with `inputs` wipes that node's generation history – pass `inputs` only for nodes being re-run.
+- An open editor tab autosaves its copy over model/prompt edits written straight into the flow file; to run with settings that differ from the node, call `POST /api/run` with `track` (see `examples/tvc/nov_direct.py`).
+

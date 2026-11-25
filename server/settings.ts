@@ -1,7 +1,7 @@
 /**
- * Muse settings – stored server-side in .flows/settings.json (git-ignored).
- * The API key never leaves the server: the browser only sees whether a key is set + its last 4 chars.
- * MUSE_API_KEY / MUSE_BASE_URL (also read from .env) are used when nothing is saved in Settings.
+ * Provider settings (Muse, Nov) – stored server-side in .flows/settings.json (git-ignored).
+ * API keys never leave the server: the browser only sees whether a key is set + its last 4 chars.
+ * MUSE_API_KEY / MUSE_BASE_URL and NOV_API_KEY / NOV_BASE_URL (also read from .env) are used when nothing is saved in Settings.
  */
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -15,7 +15,7 @@ try {
 export const DATA_DIR = join(process.cwd(), '.flows')
 const FILE = join(DATA_DIR, 'settings.json')
 
-export type ProviderId = 'muse'
+export type ProviderId = 'muse' | 'nov'
 
 export interface ProviderConfig {
   enabled: boolean
@@ -29,10 +29,18 @@ export interface Settings {
 
 export const DEFAULT_BASE_URL = 'https://muse.careflow-demo.online'
 
+export const NOV_BASE_URL = 'https://nov.ai.vn/api'
+
 export const DEFAULT_SETTINGS: Settings = {
   providers: {
     muse: { enabled: true, baseUrl: DEFAULT_BASE_URL },
+    nov: { enabled: true, baseUrl: NOV_BASE_URL },
   },
+}
+
+const ENV: Record<ProviderId, { key: string; url: string }> = {
+  muse: { key: 'MUSE_API_KEY', url: 'MUSE_BASE_URL' },
+  nov: { key: 'NOV_API_KEY', url: 'NOV_BASE_URL' },
 }
 
 const envBacked = new Set<ProviderId>()
@@ -44,14 +52,25 @@ export function loadSettings(): Settings {
   } catch {
     /* corrupt file → defaults */
   }
-  const muse: ProviderConfig = { ...DEFAULT_SETTINGS.providers.muse, ...(saved.providers?.muse ?? {}) }
-  if (process.env.MUSE_BASE_URL && !saved.providers?.muse?.baseUrl) muse.baseUrl = process.env.MUSE_BASE_URL.replace(/\/+$/, '')
-  // A key saved in Settings wins; the env var is only a fallback.
-  if (!muse.apiKey && process.env.MUSE_API_KEY) {
-    muse.apiKey = process.env.MUSE_API_KEY
-    envBacked.add('muse')
-  } else envBacked.delete('muse')
-  return { providers: { muse } }
+  // .env may be edited while the server runs – re-read it so a new key works without a restart
+  try {
+    process.loadEnvFile(join(process.cwd(), '.env'))
+  } catch {
+    /* no .env */
+  }
+  const providers = {} as Record<ProviderId, ProviderConfig>
+  for (const id of Object.keys(DEFAULT_SETTINGS.providers) as ProviderId[]) {
+    const p: ProviderConfig = { ...DEFAULT_SETTINGS.providers[id], ...(saved.providers?.[id] ?? {}) }
+    const env = ENV[id]
+    if (process.env[env.url] && !saved.providers?.[id]?.baseUrl) p.baseUrl = process.env[env.url]!.replace(/\/+$/, '')
+    // A key saved in Settings wins; the env var is only a fallback.
+    if (!p.apiKey && process.env[env.key]) {
+      p.apiKey = process.env[env.key]
+      envBacked.add(id)
+    } else envBacked.delete(id)
+    providers[id] = p
+  }
+  return { providers }
 }
 
 function saveRaw(s: Settings) {
@@ -88,7 +107,7 @@ export function updateSettings(patch: { providers?: Partial<Record<ProviderId, P
     if (p.apiKey === undefined) next.apiKey = cur.providers[id].apiKey
     else if (p.apiKey === '') delete next.apiKey
     else next.apiKey = p.apiKey.trim()
-    if (typeof next.baseUrl === 'string') next.baseUrl = next.baseUrl.trim().replace(/\/+$/, '') || DEFAULT_BASE_URL
+    if (typeof next.baseUrl === 'string') next.baseUrl = next.baseUrl.trim().replace(/\/+$/, '') || DEFAULT_SETTINGS.providers[id].baseUrl
     cur.providers[id] = next
   }
   saveRaw(cur)

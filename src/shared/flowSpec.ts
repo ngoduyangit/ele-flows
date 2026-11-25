@@ -150,8 +150,14 @@ export interface SpecNode {
   text?: string
   /** 1:1, 16:9, 9:16, 3:4 or 4:3 for images; videos are 16:9 or 9:16. */
   aspectRatio?: string
-  /** Video length in seconds (Muse: 10, 20, 30 or 60 – other values snap to the nearest). */
+  /** Video length in seconds (Muse: 10, 20, 30 or 60; Seedance 2.5: 4–30 – other values snap to the nearest). */
   duration?: number
+  /** Model: "muse" (default) or a Nov model – "nov/seedance-2.5", "nov/seedance-2.5-flash", "nov/seedance-2.0", "nov/seedream-5.5", … */
+  model?: string
+  /** Nov: video 480p | 720p | 1080p (default 480p = test price), image 1K | 2K (default 2K). */
+  resolution?: string
+  /** Nov/Seedance video: native audio (default true). */
+  generateAudio?: boolean
   /** Reference images (image-generation, video-generation). Muse uses at most 3; extras are tiled into a sheet. */
   refs?: Refs
   /** Video: image shown at the start / end (sent to Muse as a labelled reference). */
@@ -174,7 +180,7 @@ export interface WorkflowSpec {
   name: string
   description?: string
   /** Defaults applied to nodes that don't set them. */
-  defaults?: { aspectRatio?: string }
+  defaults?: { aspectRatio?: string; imageModel?: string; videoModel?: string }
   nodes: SpecNode[]
   /** Extra explicit connections. */
   edges?: { from: string; to: string; port?: string }[]
@@ -201,8 +207,8 @@ export function specKinds(): SpecKindInfo[] {
   return [
     { kind: 'text', nodeType: 'text', description: 'Static text / brief', ...portsFor('text'), fields: [...common, 'text'] },
     ...ASSET_KINDS.map((k) => ({ kind: k, nodeType: k, description: `Uploaded ${k} asset`, ...portsFor(k), fields: [...common, 'url', 'mimeType'] })),
-    { kind: 'image-generation', nodeType: 'content-generation', description: 'Text/reference images → image (Muse)', ...portsFor('content-generation', { parameters: { modality: 'image' } }), fields: [...common, 'prompt', 'aspectRatio', 'refs'] },
-    { kind: 'video-generation', nodeType: 'content-generation', description: 'Text/frames/reference images → video (Muse)', ...portsFor('content-generation', { parameters: { modality: 'video' } }), fields: [...common, 'prompt', 'aspectRatio', 'duration', 'startFrame', 'endFrame', 'refs'] },
+    { kind: 'image-generation', nodeType: 'content-generation', description: 'Text/reference images → image (Muse, Seedream via Nov)', ...portsFor('content-generation', { parameters: { modality: 'image' } }), fields: [...common, 'prompt', 'model', 'aspectRatio', 'resolution', 'refs'] },
+    { kind: 'video-generation', nodeType: 'content-generation', description: 'Text/frames/reference images → video (Muse, Seedance via Nov)', ...portsFor('content-generation', { parameters: { modality: 'video' } }), fields: [...common, 'prompt', 'model', 'aspectRatio', 'resolution', 'duration', 'generateAudio', 'startFrame', 'endFrame', 'refs'] },
     { kind: 'last-frame', nodeType: 'process', description: 'Extract a frame from a video (local ffmpeg) – chain the next shot from it', inputs: PROCESS_PORTS['last-frame'].inputs, output: 'image', fields: [...common, 'inputs', 'which', 'at'] },
     { kind: 'comment', nodeType: 'comment', description: 'Sticky comment (no ports)', inputs: [], output: null, fields: [...common, 'text'] },
   ]
@@ -381,6 +387,11 @@ function nodeDataFor(s: SpecNode, d: NonNullable<WorkflowSpec['defaults']>, warn
       const p = data.parameters
       p.aspectRatio = s.aspectRatio ?? d.aspectRatio ?? '16:9'
       if (g.modality === 'video' && s.duration) p.video.durationSecs = s.duration
+      const model = s.model ?? (g.modality === 'video' ? d.videoModel : d.imageModel)
+      if (model) p[g.modality].modelId = model
+      // Nov bills per resolution: Seedance tests default to 480p, Seedream to 2K
+      if (model?.startsWith('nov/')) p.resolution = s.resolution ?? (g.modality === 'video' ? '480p' : '2K')
+      if (g.modality === 'video' && s.generateAudio != null) p.video.generateAudio = s.generateAudio
       return data
     }
     case 'last-frame': {

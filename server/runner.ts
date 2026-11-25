@@ -238,7 +238,7 @@ async function execute(job: Job, force: Set<string>) {
       const req = buildRunRequest(contextFor(node, doc.nodes, doc.edges))
       const out = 'passthrough' in req ? (req.passthrough as { url?: string; text?: string }) : await run(req as unknown as RunRequest, job.ctrl.signal)
       Object.assign(nr, { status: 'done', finishedAt: Date.now(), url: out.url, text: out.text })
-      writeGeneration(job.flowId, node.id, { id: genId, status: 'done', url: out.url, text: out.text, createdAt: nr.startedAt, source: 'api' })
+      writeGeneration(job.flowId, node.id, { id: genId, status: 'done', url: out.url, text: out.text, ...((out as any).cost != null ? { cost: (out as any).cost } : {}), createdAt: nr.startedAt, source: 'api' })
       return true
     } catch (e: any) {
       const cancelled = e?.status === 499 || job.ctrl.signal.aborted

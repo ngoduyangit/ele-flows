@@ -1,5 +1,6 @@
 /**
- * Muse adapter. Every call runs server-side with the key from Settings / MUSE_API_KEY.
+ * Provider adapters: Muse (image/video) and Nov (Seedance video, Seedream image – see docs/providers/nov-seedance.md).
+ * Every call runs server-side with the key from Settings / MUSE_API_KEY / NOV_API_KEY.
  * Jobs are submitted, polled until done, and the result is copied into the local media store
  * so links never expire.
  *
@@ -34,11 +35,11 @@ const sleep = (ms: number, signal?: AbortSignal) =>
 function cfg(id: ProviderId, needKey = true): ProviderConfig {
   const p = loadSettings().providers[id]
   if (!p.enabled) throw new ProviderError(`${LABEL[id]} is disabled in Settings`, 400)
-  if (needKey && !p.apiKey) throw new ProviderError(`${LABEL[id]}: missing API key – add it in Settings or set MUSE_API_KEY`, 400)
+  if (needKey && !p.apiKey) throw new ProviderError(`${LABEL[id]}: missing API key – add it in Settings or set ${id.toUpperCase()}_API_KEY`, 400)
   return p
 }
 
-export const LABEL: Record<ProviderId, string> = { muse: 'Muse' }
+export const LABEL: Record<ProviderId, string> = { muse: 'Muse', nov: 'Nov' }
 
 async function errorText(r: Response) {
   const t = await r.text().catch(() => '')
@@ -237,7 +238,205 @@ export const muse = {
   },
 }
 
-export const PROVIDERS = { muse }
+/* ================================================================== */
+/* Nov (nov.ai.vn) – Seedance 2.0 / 2.5 video, Seedream 5.x image     */
+/* ================================================================== */
+
+/** Server whose param schema we speak (prompt, image_urls, image_mode, video_url, audio_file_url, resolution, duration, aspect_ratio, audio). */
+const NOV_SERVER = 'sv18'
+export const NOV_MODELS = ['seedance-2.5', 'seedance-2.5-flash', 'seedance-2.5-ultra', 'seedance-2.0', 'seedance-2.0-mini']
+// The account allows far more (70 on 2026-11-25); 10 at once keeps the editor fast without flooding Nov
+const novSlot = limiter(Math.max(1, Number(process.env.NOV_CONCURRENCY) || 10))
+// Uploaded inputs keyed by local media file → nov URL, so re-runs don't re-upload the same still
+const novUploads = new Map<string, string>()
+const novParams = new Map<string, Promise<any[]>>()
+const novServerList = new Map<string, Promise<any[]>>()
+/** Seedream: preferred server per model (cheapest 2K at the time of writing); any other healthy server is a fallback. */
+export const NOV_IMAGE_MODELS: Record<string, string> = { 'seedream-5.5': 'sv15', 'seedream-5.0': 'sv1' }
+
+export const nov = {
+  h(p: ProviderConfig, json = true): Record<string, string> {
+    return { Authorization: `Bearer ${p.apiKey}`, ...(json ? { 'Content-Type': 'application/json' } : {}) }
+  },
+  /** Param definitions of `model` on NOV_SERVER (cached; public endpoint). */
+  params(model: string) {
+    if (!novParams.has(model)) {
+      const p = cfg('nov', false)
+      const pr = call('nov', `${p.baseUrl}/v1/models/${encodeURIComponent(model)}/servers`)
+        .then((r) => r.json())
+        .then((j: any) => {
+          const sv = (j.servers ?? []).find((s: any) => s.server_id === NOV_SERVER)
+          if (!sv) throw new ProviderError(`Nov: ${model} is not offered on ${NOV_SERVER.toUpperCase()}`, 400)
+          if (sv.maintenance || sv.server_status !== 'healthy') throw new ProviderError(`Nov: ${model} on ${NOV_SERVER.toUpperCase()} is under maintenance – try again later`, 503)
+          return sv.params ?? []
+        })
+      pr.catch(() => setTimeout(() => novParams.delete(model), 5000))
+      novParams.set(model, pr)
+      setTimeout(() => novParams.delete(model), 10 * 60_000).unref() // server status changes – refresh every 10 min
+    }
+    return novParams.get(model)!
+  },
+  /** All servers of a canonical model with status, params and pricing (cached 10 min; public endpoint). */
+  servers(model: string) {
+    if (!novServerList.has(model)) {
+      const p = cfg('nov', false)
+      const pr = call('nov', `${p.baseUrl}/v1/models/${encodeURIComponent(model)}/servers`)
+        .then((r) => r.json())
+        .then((j: any) => (j.servers ?? []) as any[])
+      pr.catch(() => setTimeout(() => novServerList.delete(model), 5000))
+      novServerList.set(model, pr)
+      setTimeout(() => novServerList.delete(model), 10 * 60_000).unref()
+    }
+    return novServerList.get(model)!
+  },
+  /**
+   * Seedream text/image → image. Every Nov server has its own param names, so the body is built from that
+   * server's param list: refs go to whichever file param it has, aspect/resolution snap to its options.
+   */
+  async image(o: { model?: string; prompt: string; aspectRatio?: string; resolution?: string; images?: string[]; signal?: AbortSignal }) {
+    const model = o.model && NOV_IMAGE_MODELS[o.model] ? o.model : 'seedream-5.5'
+    const healthy = (await this.servers(model)).filter((s) => s.server_status === 'healthy' && !s.maintenance)
+    const sv = healthy.find((s) => s.server_id === NOV_IMAGE_MODELS[model]) ?? healthy.sort((a, b) => (a.pricing?.min_price ?? 1e9) - (b.pricing?.min_price ?? 1e9))[0]
+    if (!sv) throw new ProviderError(`Nov: every server of ${model} is under maintenance – try again later`, 503)
+    const params: any[] = sv.params ?? []
+    const param = (name: string) => params.find((x) => x.name === name)
+    const opts = (name: string): string[] => (param(name)?.options ?? []).map((x: any) => String(x.value))
+    const body: Record<string, unknown> = { model, server: sv.server_id, prompt: o.prompt }
+    const ar = opts('aspect_ratio')
+    if (ar.length) body.aspect_ratio = o.aspectRatio && ar.includes(o.aspectRatio) ? o.aspectRatio : (['auto', 'adaptive'].find((x) => ar.includes(x)) ?? (ar.includes('1:1') ? '1:1' : ar[0]))
+    const res = opts('resolution')
+    if (res.length) {
+      // node offers 1K / 2K / 4K; servers use e.g. 1k|2k or 1.5k|2k – take the closest, never above what was asked unless nothing is lower
+      const k = (v: string) => parseFloat(v) || 1
+      const want = k(o.resolution ?? '2K')
+      body.resolution = res.reduce((a, b) => (Math.abs(k(b) - want) < Math.abs(k(a) - want) ? b : a))
+    }
+    const refs = o.images ?? []
+    if (refs.length) {
+      const fp = param('reference_image_urls') ?? param('image_urls') ?? params.find((x) => x.type === 'file_url' && x.file_type === 'image')
+      if (!fp) throw new ProviderError(`Nov: ${model} on ${sv.server_name ?? sv.server_id} takes no reference images`, 400)
+      const max = Number(fp.max_files) || 1
+      if (refs.length > max) throw new ProviderError(`${model}: at most ${max} reference images on ${sv.server_name ?? sv.server_id} – this node has ${refs.length}. Remove ${refs.length - max}.`, 400)
+      const urls = await Promise.all(refs.map((u) => this.upload(u, o.signal)))
+      body[fp.name] = fp.multiple === false ? urls[0] : urls
+    }
+    return novSlot(() => this.job(body, o.signal, 'image/png'), o.signal)
+  },
+  async upload(url: string, signal?: AbortSignal): Promise<string> {
+    if (/^https:\/\/nov\.ai\.vn\//.test(url)) return url
+    const key = url.split('?')[0]
+    const hit = novUploads.get(key)
+    if (hit) return hit
+    const p = cfg('nov')
+    const m = await resolveMedia(url)
+    const form = new FormData()
+    form.append('file', new Blob([new Uint8Array(m.buf)], { type: m.mime }), m.name)
+    const r = await call('nov', `${p.baseUrl}/account/ai/uploads`, { method: 'POST', headers: this.h(p, false), body: form, signal })
+    const j: any = await r.json()
+    if (!j.url) throw new ProviderError(`Nov: upload failed ${JSON.stringify(j).slice(0, 200)}`)
+    novUploads.set(key, j.url)
+    return j.url
+  },
+  async video(o: {
+    model?: string
+    prompt: string
+    aspectRatio?: string
+    durationSecs?: number
+    resolution?: string
+    audio?: boolean
+    images?: string[]
+    imageLabels?: string[]
+    startFrame?: string
+    endFrame?: string
+    video?: string
+    audioRef?: string
+    signal?: AbortSignal
+  }) {
+    const model = NOV_MODELS.includes(o.model ?? '') ? o.model! : 'seedance-2.5'
+    const params = await this.params(model)
+    const opts = (name: string): string[] => (params.find((x: any) => x.name === name)?.options ?? []).map((x: any) => String(x.value))
+    const refs = o.images ?? []
+    // Frame modes only when the node has frames and no references; otherwise every image is an @ImageN reference
+    const mode = !refs.length && o.startFrame && o.endFrame ? 'first_last' : !refs.length && o.startFrame ? 'first_frame' : 'reference'
+    const imgs = mode === 'reference' ? [...refs, ...(o.startFrame ? [o.startFrame] : []), ...(o.endFrame ? [o.endFrame] : [])] : [o.startFrame!, ...(mode === 'first_last' ? [o.endFrame!] : [])]
+    // image_urls holds frames and references together; reject before uploading/charging (Nov would 400 anyway)
+    const maxImgs = Number(params.find((x: any) => x.name === 'image_urls')?.max_files) || 0
+    if (maxImgs && imgs.length > maxImgs)
+      throw new ProviderError(
+        `${model}: at most ${maxImgs} images per video (references + start/end frames together) – this node has ${imgs.length} (${refs.length} reference${refs.length === 1 ? '' : 's'}${o.startFrame ? ' + start frame' : ''}${o.endFrame ? ' + end frame' : ''}). Remove ${imgs.length - maxImgs} or pick a model that takes more (Seedance 2.5 / Ultra: 30).`,
+        400,
+      )
+    let prompt = o.prompt
+    if (mode === 'reference' && imgs.length) {
+      const startN = refs.length + 1
+      const endN = refs.length + (o.startFrame ? 2 : 1)
+      prompt = prompt
+        .replace(/reference image (\d+)/g, '@Image$1')
+        .replace(/the start frame/g, `@Image${startN}`)
+        .replace(/the end frame/g, `@Image${endN}`)
+      const legend = [
+        ...refs.map((_, i) => `@Image${i + 1}: ${o.imageLabels?.[i] || `reference ${i + 1}`}`),
+        ...(o.startFrame ? [`@Image${startN}: opening frame`] : []),
+        ...(o.endFrame ? [`@Image${endN}: closing frame`] : []),
+      ]
+      prompt = `${legend.join('\n')}\n\n${prompt}`
+    }
+    const pick = (name: string, want: string | undefined, fallback: string) => {
+      const list = opts(name)
+      return want && list.includes(want) ? want : list.includes(fallback) ? fallback : (list[0] ?? fallback)
+    }
+    const durs = opts('duration').map(Number).filter((n) => n > 0)
+    const res = (o.resolution ?? '').toLowerCase() === '4k' ? '1080p' : o.resolution
+    const body: Record<string, unknown> = {
+      model,
+      server: NOV_SERVER,
+      prompt,
+      resolution: pick('resolution', res, '720p'),
+      duration: String(durs.length ? nearest(o.durationSecs ?? 10, durs) : (o.durationSecs ?? 10)),
+      aspect_ratio: pick('aspect_ratio', o.aspectRatio, 'auto'),
+      audio: o.audio ?? true,
+    }
+    if (imgs.length) {
+      body.image_urls = await Promise.all(imgs.map((u) => this.upload(u, o.signal)))
+      body.image_mode = mode
+    }
+    if (o.video) body.video_url = await this.upload(o.video, o.signal)
+    if (o.audioRef) body.audio_file_url = await this.upload(o.audioRef, o.signal)
+    return novSlot(() => this.job(body, o.signal), o.signal)
+  },
+  async job(body: Record<string, unknown>, signal?: AbortSignal, mime = 'video/mp4') {
+    const p = cfg('nov')
+    const r = await call('nov', `${p.baseUrl}/v1/generations`, { method: 'POST', headers: this.h(p), body: JSON.stringify(body), signal })
+    let g: any = await r.json()
+    if (!g.id) throw new ProviderError(`Nov: unexpected response ${JSON.stringify(g).slice(0, 200)}`)
+    console.log(`[flows] Nov ${body.model} job ${g.code ?? g.id} · ${g.cost ?? '?'} ${g.currency ?? 'VND'}`)
+    const started = Date.now()
+    while (['queued', 'processing'].includes(g.status)) {
+      if (Date.now() - started > 30 * 60_000) throw new ProviderError(`Nov: timed out waiting for job ${g.code ?? g.id}`)
+      await sleep(6000, signal)
+      try {
+        g = await (await call('nov', `${p.baseUrl}/v1/generations/${g.id}`, { headers: this.h(p), signal })).json()
+      } catch (e: any) {
+        // A 5xx / gateway error while polling does not stop the job on Nov (it keeps running and is charged) –
+        // keep polling instead of losing a paid result; only auth errors and cancellation end the loop.
+        if (e instanceof ProviderError && (e.status === 499 || e.status === 401)) throw e
+        console.warn(`[flows] Nov: poll of ${g.code ?? g.id} failed (${e?.message ?? e}) – retrying`)
+      }
+    }
+    if (g.status !== 'succeeded') throw new ProviderError(`Nov: ${typeof g.error === 'string' ? g.error : (g.error?.message ?? g.status)}${g.refunded ? ' (refunded)' : ''}`)
+    const file = (g.output?.files ?? []).find((f: any) => f.type === mime.split('/')[0]) ?? g.output?.files?.[0]
+    if (!file?.url) throw new ProviderError('Nov: job finished without a file')
+    console.log(`[flows] Nov job ${g.code ?? g.id} done · charged ${Number(g.cost ?? 0).toLocaleString('vi-VN')}đ`)
+    return { url: await downloadToStore(file.url, {}, mime), jobId: g.id, ...(typeof g.cost === 'number' ? { cost: g.cost } : {}) }
+  },
+  async test() {
+    const p = cfg('nov')
+    const j: any = await (await call('nov', `${p.baseUrl}/account/credits`, { headers: this.h(p) })).json()
+    return { ok: true, message: `Balance: ${Number(j.credits ?? 0).toLocaleString('vi-VN')} VND · ${j.concurrency ?? '?'} concurrent jobs` }
+  },
+}
+
+export const PROVIDERS = { muse, nov }
 
 /* ================================================================== */
 /* Capability router                                                  */
@@ -256,6 +455,10 @@ export interface RunRequest {
   endFrame?: string
   aspectRatio?: string
   durationSecs?: number
+  /** Nov: image '1K' | '2K', video '480p' | '720p' | '1080p' */
+  resolution?: string
+  /** Nov/Seedance: native audio on/off */
+  generateAudio?: boolean
   /** frame: source video and which frame to take */
   video?: string
   which?: 'first' | 'last' | 'time'
@@ -272,6 +475,10 @@ function refItems(req: RunRequest): RefItem[] {
   ]
 }
 
+/** "nov/seedance-2.5" → 'nov'; anything else ("muse", unset) → Muse. */
+const provider = (model?: string) => (model?.startsWith('nov/') ? 'nov' : 'muse')
+const modelName = (model?: string) => model?.split('/').slice(1).join('/') || undefined
+
 export async function run(req: RunRequest, signal: AbortSignal): Promise<{ text?: string; url?: string; provider: string }> {
   const need = (v: unknown, what: string) => {
     if (!v) throw new ProviderError(what, 400)
@@ -279,9 +486,28 @@ export async function run(req: RunRequest, signal: AbortSignal): Promise<{ text?
   switch (req.capability) {
     case 'image':
       need(req.prompt?.trim(), 'Prompt is empty')
+      if (provider(req.model) === 'nov')
+        return { ...(await nov.image({ model: modelName(req.model), prompt: req.prompt!, aspectRatio: req.aspectRatio, resolution: req.resolution, images: req.images, signal })), provider: 'nov' }
       return { ...(await muse.image({ prompt: req.prompt!, aspectRatio: req.aspectRatio, refs: refItems(req), signal })), provider: 'muse' }
     case 'video':
       need(req.prompt?.trim(), 'Prompt is empty')
+      if (provider(req.model) === 'nov')
+        return {
+          ...(await nov.video({
+            model: modelName(req.model),
+            prompt: req.prompt!,
+            aspectRatio: req.aspectRatio,
+            durationSecs: req.durationSecs,
+            resolution: req.resolution,
+            audio: req.generateAudio,
+            images: req.images,
+            imageLabels: req.imageLabels,
+            startFrame: req.startFrame,
+            endFrame: req.endFrame,
+            signal,
+          })),
+          provider: 'nov',
+        }
       // Muse has no start-frame mode: start/end frames are sent as references with their role
       return { ...(await muse.video({ prompt: req.prompt!, aspectRatio: req.aspectRatio, durationSecs: req.durationSecs, refs: refItems(req), signal })), provider: 'muse' }
     case 'frame': {

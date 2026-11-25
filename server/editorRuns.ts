@@ -41,7 +41,7 @@ export function startEditorRun(req: RunRequest, t: Track) {
     (out) => {
       r.status = 'done'
       r.finishedAt = Date.now()
-      writeGeneration(t.flowId, t.nodeId, { id: t.genId, status: 'done', url: out.url, text: out.text, createdAt: r.createdAt, source: 'api' })
+      writeGeneration(t.flowId, t.nodeId, { id: t.genId, status: 'done', url: out.url, text: out.text, ...((out as any).cost != null ? { cost: (out as any).cost } : {}), createdAt: r.createdAt, source: 'api' })
       return out
     },
     (err) => {

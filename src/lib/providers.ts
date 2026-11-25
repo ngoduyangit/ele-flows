@@ -1,7 +1,7 @@
-/** Client side of the local /api settings (Muse key + base URL). */
+/** Client side of the local /api settings (Muse / Nov keys + base URLs). */
 import { useEffect, useState } from 'react'
 
-export type ProviderId = 'muse'
+export type ProviderId = 'muse' | 'nov'
 
 export interface PublicProvider {
   enabled: boolean

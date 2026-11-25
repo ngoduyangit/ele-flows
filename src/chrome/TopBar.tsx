@@ -1,5 +1,5 @@
 import { useReactFlow, useStore } from '@xyflow/react'
-import { ChevronDown, CloudAlert, CloudCheck, LoaderCircle, Settings } from 'lucide-react'
+import { ChevronDown, Clapperboard, CloudAlert, CloudCheck, LoaderCircle, Settings, Workflow } from 'lucide-react'
 import { CostButton } from './CostButton'
 import { useEffect, useRef, useState } from 'react'
 import { Button, MOD, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Tip, cn } from '../components/ui'
@@ -19,7 +19,7 @@ function FlowsLogo() {
   )
 }
 
-export function TopBar({ onDuplicate, onDelete, onNewFlow }: { onDuplicate: () => void; onDelete: () => void; onNewFlow: () => void }) {
+export function TopBar({ view = 'canvas', onDuplicate, onDelete, onNewFlow }: { view?: 'canvas' | 'scenes'; onDuplicate: () => void; onDelete: () => void; onNewFlow: () => void }) {
   const name = useFlow((s) => s.name)
   const setName = useFlow((s) => s.setName)
   const canUndo = useFlow((s) => s.past.length > 0)
@@ -115,12 +115,13 @@ export function TopBar({ onDuplicate, onDelete, onNewFlow }: { onDuplicate: () =
             </p>
           )}
         </div>
+        <ViewToggle view={view} />
       </div>
 
       <div className="flex gap-2">
         <div className={pill}>
           <div className="flex items-center p-1">
-            <ZoomMenu />
+            {view === 'canvas' && <ZoomMenu />}
             <SaveStatus />
             <CostButton />
             <Button size="md" className="px-3" onClick={() => navigator.clipboard?.writeText(location.href)}>
@@ -187,5 +188,37 @@ function SaveStatus() {
         )}
       </span>
     </Tip>
+  )
+}
+
+/** Canvas ⇄ scenes board (same flow, same history – only the view changes). */
+function ViewToggle({ view }: { view: 'canvas' | 'scenes' }) {
+  const go = (v: 'canvas' | 'scenes') => {
+    if (v === view) return
+    const st = useFlow.getState()
+    if (v === 'scenes') useFlow.setState({ scenesFocus: st.nodes.find((n) => n.selected)?.id ?? null })
+    navigate(`/flows/${st.flowId}${v === 'scenes' ? '/scenes' : ''}`)
+  }
+  const item = (v: 'canvas' | 'scenes', label: string, Icon: typeof Workflow) => (
+    <Tip label={v === 'scenes' ? 'Scenes & shots board' : 'Node canvas'} shortcut="⇧S">
+      <button
+        type="button"
+        aria-pressed={view === v}
+        onClick={() => go(v)}
+        className={cn(
+          'inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-sm font-medium transition-colors duration-75 focus-ring',
+          view === v ? 'bg-gray-alpha-150 text-foreground' : 'text-secondary hover:bg-gray-alpha-100',
+        )}
+      >
+        <Icon className="w-4 h-4" strokeWidth={1.5} />
+        {label}
+      </button>
+    </Tip>
+  )
+  return (
+    <div className="p-1 border-l border-border flex gap-0.5">
+      {item('canvas', 'Canvas', Workflow)}
+      {item('scenes', 'Scenes', Clapperboard)}
+    </div>
   )
 }

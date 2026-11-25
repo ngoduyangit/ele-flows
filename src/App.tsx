@@ -14,6 +14,7 @@ import { migrateLocalFlows } from './lib/serverApi'
 import sample from './data/sample-flow.json'
 import { api } from './lib/api'
 import type { FlowDocument } from './lib/types'
+import { ScenesView } from './scenes/ScenesView'
 import { navigate, useRoute } from './router'
 import { useFlow } from './store/flowStore'
 import { INTERRUPTED } from './shared/interrupted'
@@ -45,8 +46,9 @@ export default function App() {
     if (ready && !route) navigate(`/flows/${SAMPLE_ID}`)
   }, [ready, route])
   if (!ready) return null
-  const m = /^\/flows\/([\w-]+)/.exec(route)
-  return <Tooltip.Provider delayDuration={400}>{m ? <Editor key={m[1]} id={m[1]} /> : <Home />}</Tooltip.Provider>
+  const m = /^\/flows\/([\w-]+)(?:\/(scenes))?/.exec(route)
+  // same key for both views: switching canvas ⇄ scenes keeps the loaded flow, history and autosave
+  return <Tooltip.Provider delayDuration={400}>{m ? <Editor key={m[1]} id={m[1]} view={m[2] === 'scenes' ? 'scenes' : 'canvas'} /> : <Home />}</Tooltip.Provider>
 }
 
 /* ------------------------------------------------------------------ */
@@ -75,7 +77,9 @@ function closeStaleRuns(runs: any[]) {
   }
 }
 
-function Editor({ id }: { id: string }) {
+export type EditorView = 'canvas' | 'scenes'
+
+function Editor({ id, view }: { id: string; view: EditorView }) {
   const [state, setState] = useState<'loading' | 'ready' | 'missing'>('loading')
 
   useEffect(() => {
@@ -100,11 +104,11 @@ function Editor({ id }: { id: string }) {
     let timer: ReturnType<typeof setTimeout> | undefined
     const fingerprint = () => {
       const s = useFlow.getState()
-      return JSON.stringify([s.name, s.nodes.map(({ selected: _a, dragging: _b, measured: _c, ...n }) => n), s.edges.map(({ selected: _d, ...e }) => e)])
+      return JSON.stringify([s.name, s.nodes.map(({ selected: _a, dragging: _b, measured: _c, ...n }) => n), s.edges.map(({ selected: _d, ...e }) => e), s.board])
     }
     let last = fingerprint()
     const unsub = useFlow.subscribe((s, prev) => {
-      if (s.nodes === prev.nodes && s.edges === prev.edges && s.name === prev.name) return
+      if (s.nodes === prev.nodes && s.edges === prev.edges && s.name === prev.name && s.board === prev.board) return
       if (s.name !== prev.name) document.title = `${s.name} | Flows`
       clearTimeout(timer)
       timer = setTimeout(async () => {
@@ -195,8 +199,10 @@ function Editor({ id }: { id: string }) {
     <ReactFlowProvider>
       <div className="relative h-screen w-full overflow-hidden">
         <div className="absolute inset-0 flex bg-gray-50">
-          <FlowCanvas />
+          {/* the canvas unmounts on the board: its window-level shortcuts (Delete, V/H/C/N…) must not act on hidden nodes */}
+          {view === 'canvas' ? <FlowCanvas /> : <ScenesView flowId={id} />}
           <TopBar
+            view={view}
             onNewFlow={() => createFlow()}
             onDuplicate={() => {
               const doc = useFlow.getState().toDocument()
@@ -208,9 +214,13 @@ function Editor({ id }: { id: string }) {
               navigate('/')
             }}
           />
-          <BottomBar />
-          <CanvasControls />
-          <StructurePanel />
+          {view === 'canvas' && (
+            <>
+              <BottomBar />
+              <CanvasControls />
+              <StructurePanel />
+            </>
+          )}
           <QuickActions />
           <SettingsDialog />
           <Notice />

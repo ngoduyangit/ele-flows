@@ -13,6 +13,7 @@ import { create } from 'zustand'
 import { api } from '../lib/api'
 import { CATALOG, getInputPort, getOutputType, getPorts, newNodeId, type CatalogItem } from '../lib/registry'
 import type { BaseNodeData, FlowDocument, FlowEdge, FlowNode, Generation } from '../lib/types'
+import type { Board } from '../shared/board'
 
 export type Tool = 'select' | 'hand' | 'comment'
 export type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
@@ -20,6 +21,7 @@ export type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
 interface Snapshot {
   nodes: FlowNode[]
   edges: FlowEdge[]
+  board?: Board | null
 }
 
 /** Pending "connection dropped on empty canvas" – opens the contextual Add-node menu. */
@@ -41,6 +43,12 @@ interface FlowState {
   externalEditAt?: number
   nodes: FlowNode[]
   edges: FlowEdge[]
+  /** Scenes board as stored with the flow (null = detected from labels, see shared/board.ts). */
+  board: Board | null
+  /** Node to frame when the canvas mounts (set by "Open in canvas" on the scenes board). */
+  canvasFocus: string | null
+  /** Node whose shot the scenes board should select when it opens (set from the canvas). */
+  scenesFocus: string | null
   tool: Tool
   saveState: SaveState
   past: Snapshot[]
@@ -70,6 +78,8 @@ interface FlowState {
   snapshot(): void
   undo(): void
   redo(): void
+  /** Replace the scenes board (one undo step unless history is false). */
+  setBoard(board: Board | null, opts?: { history?: boolean }): void
   addNode(item: CatalogItem, opts?: { position?: XYPosition; connect?: PendingConnection | null }): string | null
   addRawNode(node: Omit<FlowNode, 'id'> & { id?: string }, connect?: PendingConnection | null): string
   /** Add several nodes + edges as one undo step (selection is cleared). */
@@ -88,6 +98,8 @@ interface FlowState {
   runUpTo(id: string): Promise<void>
   /** Run the whole flow in dependency order (by default only nodes without an output). */
   runAll(onlyMissing?: boolean): Promise<void>
+  /** Run these nodes (plus missing upstream inputs) – used by the scenes board. */
+  runNodes(ids: string[], onlyMissing?: boolean): Promise<void>
   /** Auto-arrange nodes in dependency columns without overlaps. */
   tidyUp(): void
   cancelRun(id: string): void
@@ -113,6 +125,9 @@ export const useFlow = create<FlowState>((set, get) => ({
   createdAt: Date.now(),
   nodes: [],
   edges: [],
+  board: null,
+  canvasFocus: null,
+  scenesFocus: null,
   tool: 'select',
   saveState: 'saved',
   past: [],
@@ -137,6 +152,7 @@ export const useFlow = create<FlowState>((set, get) => ({
       externalEditAt: flow.externalEditAt,
       nodes: flow.nodes.map(({ width: _w, height: _h, ...n }) => ({ ...n, selected: false }) as FlowNode),
       edges: flow.edges.map((e) => ({ ...e, type: 'dataflow' })),
+      board: flow.board ?? null,
       past: [],
       future: [],
       saveState: 'saved',
@@ -150,6 +166,7 @@ export const useFlow = create<FlowState>((set, get) => ({
       name: s.name,
       nodes: strip(s.nodes),
       edges: s.edges.map(({ selected: _s, ...e }) => e),
+      ...(s.board ? { board: s.board } : {}),
       createdAt: s.createdAt,
       externalEditAt: s.externalEditAt,
       updatedAt: Date.now(),
@@ -204,34 +221,40 @@ export const useFlow = create<FlowState>((set, get) => ({
   },
 
   snapshot() {
-    const { nodes, edges, past } = get()
-    set({ past: [...past.slice(-99), { nodes: clone(strip(nodes)), edges: clone(edges) }], future: [], saveState: 'unsaved' })
+    const { nodes, edges, board, past } = get()
+    set({ past: [...past.slice(-99), { nodes: clone(strip(nodes)), edges: clone(edges), board }], future: [], saveState: 'unsaved' })
   },
   undo() {
-    const { past, future, nodes, edges } = get()
+    const { past, future, nodes, edges, board } = get()
     const prev = past[past.length - 1]
     if (!prev) return
     set({
       past: past.slice(0, -1),
-      future: [{ nodes: clone(strip(nodes)), edges: clone(edges) }, ...future],
+      future: [{ nodes: clone(strip(nodes)), edges: clone(edges), board }, ...future],
       nodes: prev.nodes,
       edges: prev.edges,
+      board: prev.board ?? null,
       saveState: 'unsaved',
     })
   },
   redo() {
-    const { past, future, nodes, edges } = get()
+    const { past, future, nodes, edges, board } = get()
     const next = future[0]
     if (!next) return
     set({
       future: future.slice(1),
-      past: [...past, { nodes: clone(strip(nodes)), edges: clone(edges) }],
+      past: [...past, { nodes: clone(strip(nodes)), edges: clone(edges), board }],
       nodes: next.nodes,
       edges: next.edges,
+      board: next.board ?? null,
       saveState: 'unsaved',
     })
   },
 
+  setBoard(board, opts = {}) {
+    if (opts.history !== false) get().snapshot()
+    set({ board, saveState: 'unsaved' })
+  },
   addNode(item, opts = {}) {
     if (!item.create) return null
     const { type, data, width } = item.create()
@@ -452,6 +475,12 @@ export const useFlow = create<FlowState>((set, get) => ({
   },
   async runUpTo(id) {
     await runSequence(topoOrder(get().nodes, get().edges, upstream(id, get().edges)), get, () => true)
+  },
+  async runNodes(ids, onlyMissing = true) {
+    const targets = new Set(ids)
+    const needed = new Set(targets)
+    for (const t of targets) for (const a of upstream(t, get().edges)) if (!hasOutput(get().nodes.find((n) => n.id === a))) needed.add(a)
+    await runSequence(topoOrder(get().nodes, get().edges, needed), get, (nid) => !onlyMissing && targets.has(nid))
   },
   async runAll(onlyMissing = true) {
     const all = new Set(get().nodes.map((n) => n.id))

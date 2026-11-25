@@ -19,6 +19,7 @@ import type { FlowNode } from '../lib/types'
 import { outputUrl } from '../shared/runRequest'
 import { CommentNode, ContentGenerationNode, MediaNode, ProcessNode, TextNode } from '../nodes/nodes'
 import { NodeMenuItems } from '../nodes/parts'
+import { navigate } from '../router'
 import { useFlow } from '../store/flowStore'
 import { addFileNode, pickCatalogItem } from './actions'
 import { ConnectionLine, DataFlowEdge } from './edges'
@@ -97,7 +98,14 @@ export function FlowCanvas() {
   const onMoveEnd = useCallback((_: unknown, vp: Viewport) => syncViewport(vp), [syncViewport])
   const onInit = useCallback(
     (inst: { fitView: (o?: any) => void; getViewport: () => Viewport }) => {
-      inst.fitView({ padding: 0.1 })
+      const st = useFlow.getState()
+      const focus = st.canvasFocus
+      if (focus && st.nodes.some((n) => n.id === focus)) {
+        // "Open in canvas" from the scenes board
+        useFlow.setState({ canvasFocus: null })
+        st.selectOnly([focus])
+        setTimeout(() => inst.fitView({ nodes: [{ id: focus }], maxZoom: 1, padding: 0.4 }), 60)
+      } else inst.fitView({ padding: 0.1 })
       setTimeout(() => syncViewport(inst.getViewport()), 50)
     },
     [syncViewport],
@@ -173,6 +181,10 @@ export function FlowCanvas() {
         st.runAll(true)
       } else if (mod && k === 'enter') {
         selected.forEach((id) => st.runNode(id))
+      } else if (e.shiftKey && !mod && e.code === 'KeyS') {
+        const sel = st.nodes.find((n) => n.selected)
+        useFlow.setState({ scenesFocus: sel?.id ?? null })
+        navigate(`/flows/${st.flowId}/scenes`)
       } else if (e.shiftKey && !mod && e.code === 'KeyT') {
         window.dispatchEvent(new Event('flows:tidy'))
       } else if (e.shiftKey && e.code === 'Digit1') {

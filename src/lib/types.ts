@@ -111,6 +111,8 @@ export interface FlowDocument {
   autoLayout?: boolean
   /** Last external (API) replace – the editor sends back the value it loaded, the server refuses stale saves. */
   externalEditAt?: number
+  /** Scenes → shots board (null/absent = detected from node labels, see src/shared/board.ts). */
+  board?: import('../shared/board').Board | null
   updatedAt: number
   createdAt: number
 }

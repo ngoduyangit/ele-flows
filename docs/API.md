@@ -45,6 +45,7 @@ A spec is a short description of a flow. The server turns it into a full flow do
 | `image`, `video` | An existing file | `url` (http(s), `data:` or `/api/media/...`), `mimeType` |
 | `image-generation` | Muse or Seedream (Nov) text/reference images → image | `prompt`, `aspectRatio` (`16:9`, `9:16`, `1:1`, `4:3`, `3:4`), `refs`, `model` (`muse` default, `nov/seedream-5.5`, `nov/seedream-5.0`), `resolution` (Nov: `2K` default, `1K`) |
 | `video-generation` | Muse or Seedance (Nov) text/reference images → video | `prompt`, `aspectRatio` (`16:9`, `9:16`), `duration` (Muse 10, 20, 30, 60; Seedance 2.5 4–30), `refs`, `startFrame`, `endFrame`, `model` (`muse` default, `nov/seedance-2.5`, …), `resolution` (Nov: `480p` default, `720p`, `1080p`), `generateAudio` |
+| — | **Scenes board** (top-level spec field, optional) | `scenes: [{ "name": "Studio", "key": "A", "note": "…", "shots": ["v01", { "node": "v02", "note": "…" }] }]` – shots are node keys (the shot's video, or its still while there is no video); unlisted shots are detected from labels (`A01 …`, `V01 …`) |
 | `last-frame` | Extract a frame from a video with local ffmpeg | `inputs: {"video": "<key>"}`, `which` (`last` (default), `first`, `time`), `at` (seconds) |
 | `comment` | Sticky note, never runs | `text` |
 

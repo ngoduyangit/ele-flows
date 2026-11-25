@@ -6,6 +6,7 @@
  * Keep this file free of React / DOM imports (it runs in Node too).
  */
 import { nanoid } from 'nanoid'
+import { boardFromSpec, type Board } from './board.ts'
 
 /* ================================================================== */
 /* Core types                                                          */
@@ -55,6 +56,8 @@ export interface FlowDocumentJSON {
   autoLayout?: boolean
   /** Last time the flow was replaced from outside the editor (API/script PUT); a stale editor save is refused. */
   externalEditAt?: number
+  /** Scenes → shots board (order, names, notes); shots of unlisted nodes are detected from labels. */
+  board?: Board
 }
 
 export const newNodeId = () => nanoid(20)
@@ -184,6 +187,8 @@ export interface WorkflowSpec {
   nodes: SpecNode[]
   /** Extra explicit connections. */
   edges?: { from: string; to: string; port?: string }[]
+  /** Scenes board: shots are node keys (the shot's video, or its still while there is no video). */
+  scenes?: { name: string; key?: string; note?: string; shots: (string | { node: string; note?: string })[] }[]
 }
 
 export interface SpecKindInfo {
@@ -319,6 +324,9 @@ export function buildFlowFromSpec(spec: WorkflowSpec): BuildResult {
   if (ids.some((v) => !state.get(v) && dfs(v))) errors.push('the graph has a cycle')
   if (errors.length) return { ok: false, errors, warnings }
 
+  const board = Array.isArray(spec.scenes) ? boardFromSpec(spec.scenes, (k) => byKey.get(k)?.node.id, errors) : undefined
+  if (errors.length) return { ok: false, errors, warnings }
+
   const nodes = [...byKey.values()].map((x) => x.node)
   const fixed = new Set(spec.nodes.filter((n) => n.position).map((n) => byKey.get(n.key)!.node.id))
   autoLayout(nodes, edges, fixed)
@@ -336,6 +344,7 @@ export function buildFlowFromSpec(spec: WorkflowSpec): BuildResult {
       createdAt: now,
       updatedAt: now,
       autoLayout: fixed.size === 0,
+      ...(board ? { board } : {}),
     },
   }
 }

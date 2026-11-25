@@ -50,6 +50,10 @@ Handy actions:
 - Every connected image is sent as a reference, at most 3 per job. With more than 3, images of the same subject are tiled into one sheet. With only one image, Muse uses it as the opening frame.
 - Up to 4 Muse jobs run at once. Extra jobs wait in a queue (`MUSE_CONCURRENCY`).
 
+## Scenes board
+
+Every flow also opens as a **scenes → shots board** (top bar: *Canvas | Scenes*, or `⇧S`): scenes in the left column, a strip of shots per scene, and a shot editor showing the still and the video side by side with their prompts, references, model, Run and notes. Shots are detected from node labels (`A01 …` stills, `V01 …` videos) or set explicitly; editing the board is part of undo/redo and is saved with the flow. A workflow spec can lay out the board with `scenes: [{ "name": "Studio", "shots": ["v01", "v02"] }]`.
+
 ## Nov: Seedance & Seedream (optional)
 
 Besides Muse, generation nodes can run **Seedance 2.x** (video) and **Seedream 5.x** (image) through [nov.ai.vn](https://nov.ai.vn): put `NOV_API_KEY` in `.env` (or Settings → Nov), then choose the model in the first pill of a node's toolbar. The node header shows the price in VND; Seedance nodes start at 480p for tests. Details: [docs/providers/nov-seedance.md](docs/providers/nov-seedance.md).

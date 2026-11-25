@@ -221,3 +221,10 @@ The headless runner uses the **same** `buildRunRequest`, so the editor and the A
 - `POST /api/flows/:id/run` with `inputs` wipes that node's generation history – pass `inputs` only for nodes being re-run.
 - An open editor tab autosaves its copy over model/prompt edits written straight into the flow file; to run with settings that differ from the node, call `POST /api/run` with `track` (see `examples/tvc/nov_direct.py`).
 
+## Scenes board
+
+- `src/shared/board.ts`: `board = { scenes: [{id, name, key?, note?, shots: [{id, node, note?}]}], hidden? }` stored on the flow (`FlowDocument.board`); absent = detected from labels. `resolveBoard(board, nodes, edges)` drops shots of deleted nodes and adds new ones by label; a shot's still is derived from edges (startFrame > coded/frame ref > last ref), never stored.
+- `src/scenes/`: `ScenesView` (scene tree, shot strip, drag & drop), `ShotEditor` (still | video, prompt, refs, model, Run), `boardOps.ts` (board edits; create still/video; *Make independent*), `shotInfo.ts`.
+- The board shares the store with the canvas (`setBoard` is one undo step). `FlowCanvas` unmounts on the board so its window shortcuts never act on hidden nodes; route `#/flows/:id/scenes`, toggle in the top bar or `⇧S`.
+- Spec: `scenes: [{name, key?, note?, shots: ["v01", {node, note}]}]` → `boardFromSpec`.
+

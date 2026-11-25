@@ -1,5 +1,6 @@
 import { useReactFlow, useStore } from '@xyflow/react'
 import { ChevronDown, CloudAlert, CloudCheck, LoaderCircle, Settings } from 'lucide-react'
+import { CostButton } from './CostButton'
 import { useEffect, useRef, useState } from 'react'
 import { Button, MOD, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Tip, cn } from '../components/ui'
 import { useFlow } from '../store/flowStore'
@@ -121,6 +122,7 @@ export function TopBar({ onDuplicate, onDelete, onNewFlow }: { onDuplicate: () =
           <div className="flex items-center p-1">
             <ZoomMenu />
             <SaveStatus />
+            <CostButton />
             <Button size="md" className="px-3" onClick={() => navigator.clipboard?.writeText(location.href)}>
               Copy link
             </Button>

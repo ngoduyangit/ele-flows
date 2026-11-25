@@ -58,7 +58,7 @@ setFlowApi({
     const r = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...req, track }), signal: ctx.signal })
     const j = await r.json().catch(() => ({ error: r.statusText }))
     if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`)
-    return { id: nanoid(20), status: 'done', text: j.text, url: j.url, createdAt: Date.now() }
+    return { id: nanoid(20), status: 'done', text: j.text, url: j.url, ...(typeof j.cost === 'number' ? { cost: j.cost } : {}), createdAt: Date.now() }
   },
   cancelRun(genId) {
     void fetch('/api/run/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ genId }) }).catch(() => {})

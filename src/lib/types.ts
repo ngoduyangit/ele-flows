@@ -39,6 +39,8 @@ export interface Generation {
   /** Media output URL (image / video). */
   url?: string
   error?: string
+  /** Real charge in VND reported by the provider (Nov) for this run. */
+  cost?: number
   createdAt: number
 }
 

@@ -195,7 +195,9 @@ export function ContentGenerationNode({ id, data, selected, width }: P<ContentGe
       } else if (modality === 'video') par.video = { ...par.video, durationSecs: [10, 20, 30, 60].includes(par.video.durationSecs) ? par.video.durationSecs : 10 }
       return { ...d, parameters: par }
     })
-  const right = `${modelLabel(modelId)} ${modality === 'video' ? 'Video' : 'Image'}${price ? ` · ${price.exact ? '' : '≈'}${vnd(price.price)}` : ''}`
+  // estimate for the next run, then what the shown take really cost (Nov reports it per job)
+  const paid = typeof gen?.cost === 'number' ? ` · paid ${vnd(gen.cost)}` : ''
+  const right = `${modelLabel(modelId)} ${modality === 'video' ? 'Video' : 'Image'}${price ? ` · ${price.exact ? '' : '≈'}${vnd(price.price)}` : ''}${paid}`
 
   return (
     <NodeFrame

@@ -29,7 +29,7 @@ Seedance 2.5: 480p 4 s 3.500 · 8 s 5.000 · 10 s 6.250 — 720p 4 s 5.000 · 10
 
 - New Seedance nodes start at **480p** (test price); raise to 720p/1080p for the approved take.
 - Price is not proportional to length – 8–10 s is cheaper per second than 4–5 s.
-- The real charge of each run is stored in `generation.cost`.
+- The real charge of each run is stored in `generation.cost` and shown on the node header (`paid …`). The **wallet button** in the top bar adds up every paid run of the flow (all takes), split into Seedance / Seedream and listed per node.
 
 ## Behaviour worth knowing
 

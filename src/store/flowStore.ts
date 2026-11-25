@@ -303,7 +303,7 @@ export const useFlow = create<FlowState>((set, get) => ({
           gens = [...gens, synced]
           active = g.id
           changed = true
-        } else if (gens[i].status !== g.status || gens[i].url !== g.url || gens[i].text !== g.text) {
+        } else if (gens[i].status !== g.status || gens[i].url !== g.url || gens[i].text !== g.text || (gens[i] as any).cost !== g.cost) {
           gens = gens.map((x, j) => (j === i ? synced : x))
           changed = true
         }
